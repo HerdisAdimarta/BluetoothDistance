@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">BluetoothDistance</string>
+    <string name="none_paired">None Paired</string>
+    <string name="device_name">Device Name</string>
 </resources>

@@ -39,10 +39,4 @@
         android:text="Perangkat Terpasang"
         android:layout_gravity="center"
         android:layout_marginTop="50dp" />
-    <ListView
-        android:id="@+id/deviceList"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp">
-    </ListView>
 </LinearLayout>
