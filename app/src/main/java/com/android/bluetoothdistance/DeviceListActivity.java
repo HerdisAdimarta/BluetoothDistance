@@ -12,6 +12,8 @@ import android.widget.Toast;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class DeviceListActivity extends Activity {
     private ListView mListView;
@@ -86,14 +88,20 @@ public class DeviceListActivity extends Activity {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
+            short rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI,Short.MIN_VALUE);
+            double ratio = 10 ^ ((-69 - (rssi))/(10 * 2));
+
             if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
                 final int state 		= intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR);
                 final int prevState	= intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR);
 
                 if (state == BluetoothDevice.BOND_BONDED && prevState == BluetoothDevice.BOND_BONDING) {
                     showToast("Paired");
-                    intent = new Intent(DeviceListActivity.this, Menu2Activity.class);
-                    startActivity(intent);
+                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    showToast("Name: "+device.getName() + "\n" +"Address: "+ device.getAddress() + "\n" +"rssi: "+String.valueOf(ratio) +" meter");
+
+//                    intent = new Intent(DeviceListActivity.this, Menu2Activity.class);
+//                    startActivity(intent);
 
                 } else if (state == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED){
                     showToast("Unpaired");
