@@ -5,7 +5,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -14,73 +17,97 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Set;
 
-public class DeviceListActivity extends Activity
-{
-    protected static final String TAG = "TAG";
-    private BluetoothAdapter mBluetoothAdapter;
-    private ArrayAdapter<String> mPairedDevicesArrayAdapter;
+public class DeviceListActivity extends Activity {
+    private ListView mListView;
+    private DeviceListAdapter mAdapter;
+    private ArrayList<BluetoothDevice> mDeviceList;
 
     @Override
-    protected void onCreate(Bundle mSavedInstanceState)
-    {
-        super.onCreate(mSavedInstanceState);
-        requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
-        setContentView(R.layout.activity_device_list);
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-        setResult(Activity.RESULT_CANCELED);
-        mPairedDevicesArrayAdapter = new ArrayAdapter<String>(this, R.layout.device_name);
+        setContentView(R.layout.activity_paired_devices);
 
-        ListView mPairedListView = (ListView) findViewById(R.id.paired_devices);
-        mPairedListView.setAdapter(mPairedDevicesArrayAdapter);
-        mPairedListView.setOnItemClickListener(mDeviceClickListener);
+        mDeviceList		= getIntent().getExtras().getParcelableArrayList("device.list");
 
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        Set<BluetoothDevice> mPairedDevices = mBluetoothAdapter.getBondedDevices();
+        mListView		= (ListView) findViewById(R.id.lv_paired);
 
-        if (mPairedDevices.size() > 0)
-        {
-            findViewById(R.id.title_paired_devices).setVisibility(View.VISIBLE);
-            for (BluetoothDevice mDevice : mPairedDevices)
-            {
-                mPairedDevicesArrayAdapter.add(mDevice.getName() + "\n" + mDevice.getAddress());
+        mAdapter		= new DeviceListAdapter(this);
+
+        mAdapter.setData(mDeviceList);
+        mAdapter.setListener(new DeviceListAdapter.OnPairButtonClickListener() {
+            @Override
+            public void onPairButtonClick(int position) {
+                BluetoothDevice device = mDeviceList.get(position);
+
+                if (device.getBondState() == BluetoothDevice.BOND_BONDED) {
+                    unpairDevice(device);
+                } else {
+                    showToast("Pairing...");
+
+                    pairDevice(device);
+                }
+            }
+        });
+
+        mListView.setAdapter(mAdapter);
+
+        registerReceiver(mPairReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
+    }
+
+    @Override
+    public void onDestroy() {
+        unregisterReceiver(mPairReceiver);
+
+        super.onDestroy();
+    }
+
+
+    private void showToast(String message) {
+        Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
+    }
+
+    private void pairDevice(BluetoothDevice device) {
+        try {
+            Method method = device.getClass().getMethod("createBond", (Class[]) null);
+            method.invoke(device, (Object[]) null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void unpairDevice(BluetoothDevice device) {
+        try {
+            Method method = device.getClass().getMethod("removeBond", (Class[]) null);
+            method.invoke(device, (Object[]) null);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private final BroadcastReceiver mPairReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+
+            if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
+                final int state 		= intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR);
+                final int prevState	= intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR);
+
+                if (state == BluetoothDevice.BOND_BONDED && prevState == BluetoothDevice.BOND_BONDING) {
+                    showToast("Paired");
+                } else if (state == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED){
+                    showToast("Unpaired");
+                }
+
+                mAdapter.notifyDataSetChanged();
             }
         }
-        else
-        {
-            String mNoDevices = getResources().getText(R.string.none_paired).toString();
-            mPairedDevicesArrayAdapter.add(mNoDevices);
-        }
-    }
-
-    @Override
-    protected void onDestroy()
-    {
-        super.onDestroy();
-        if (mBluetoothAdapter != null)
-        {
-            mBluetoothAdapter.cancelDiscovery();
-        }
-    }
-
-    private AdapterView.OnItemClickListener mDeviceClickListener = new AdapterView.OnItemClickListener()
-    {
-        public void onItemClick(AdapterView<?> mAdapterView, View mView, int mPosition, long mLong)
-        {
-            mBluetoothAdapter.cancelDiscovery();
-            String mDeviceInfo = ((TextView) mView).getText().toString();
-            String mDeviceAddress = mDeviceInfo.substring(mDeviceInfo.length() - 17);
-            Log.v(TAG, "Device_Address " + mDeviceAddress);
-
-            Bundle mBundle = new Bundle();
-            mBundle.putString("DeviceAddress", mDeviceAddress);
-            Intent mBackIntent = new Intent();
-            mBackIntent.putExtras(mBundle);
-            setResult(Activity.RESULT_OK, mBackIntent);
-            finish();
-        }
     };
-
 }
