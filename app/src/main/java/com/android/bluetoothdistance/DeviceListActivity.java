@@ -102,6 +102,9 @@ public class DeviceListActivity extends Activity {
 
                 if (state == BluetoothDevice.BOND_BONDED && prevState == BluetoothDevice.BOND_BONDING) {
                     showToast("Paired");
+                    intent = new Intent(DeviceListActivity.this, Menu2Activity.class);
+                    startActivity(intent);
+
                 } else if (state == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED){
                     showToast("Unpaired");
                 }
